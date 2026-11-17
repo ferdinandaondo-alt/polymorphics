@@ -1,0 +1,28 @@
+# SITE_ADDRESS decides how Caddy behaves:
+#   escrow.yourdomain.com  -> automatic HTTPS (Let's Encrypt), needs ports 80+443 open and DNS pointing here
+#   localhost              -> local HTTPS with a self-signed cert (for trying it on your own machine)
+#   :80                    -> plain HTTP only (testing; never for real users)
+{$SITE_ADDRESS:localhost} {
+	encode gzip
+
+	# /api/anything  ->  backend:8000/anything   (the /api prefix is stripped)
+	handle_path /api/* {
+		reverse_proxy {$BACKEND_ADDRESS:backend:8000}
+	}
+
+	# everything else: the React app; unknown paths fall back to index.html so client-side routes work
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+}
